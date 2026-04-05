@@ -1,0 +1,51 @@
+import psutil
+import requests
+import time
+import os
+
+
+WRITE_API_KEY = "YOUR_WRITE_API_KEY"  
+CHANNEL_ID = "YOUR_CHANNEL_ID"        
+UPDATE_INTERVAL = 15                  
+
+def get_pc_vitals():
+    """Fetches real-time hardware metrics from the local machine."""
+    cpu = psutil.cpu_percent(interval=1)
+    ram = psutil.virtual_memory().percent
+    
+    
+    battery_info = psutil.sensors_battery()
+    battery = battery_info.percent if battery_info else 100
+    
+    return cpu, ram, battery
+
+def update_thingspeak(cpu, ram, battery):
+    """Sends the metrics to the ThingSpeak Cloud."""
+    url = "https://api.thingspeak.com/update"
+    payload = {
+        "api_key": WRITE_API_KEY,
+        "field1": cpu,
+        "field2": ram,
+        "field3": battery
+    }
+    
+    try:
+        response = requests.get(url, params=payload)
+        if response.status_code == 200:
+            print(f"[SUCCESS] Sent -> CPU: {cpu}% | RAM: {ram}% | Battery: {battery}%")
+        else:
+            print(f"[ERROR] HTTP Status: {response.status_code}")
+    except Exception as e:
+        print(f"[CONNECTION ERROR] {e}")
+
+if __name__ == "__main__":
+    print("--- PC Vitals Cloud Monitor Active ---")
+    print("Press Ctrl+C to stop.")
+    
+    try:
+        while True:
+            cpu_usage, ram_usage, battery_lvl = get_pc_vitals()
+            update_thingspeak(cpu_usage, ram_usage, battery_lvl)
+            time.sleep(UPDATE_INTERVAL)
+    except KeyboardInterrupt:
+        print("\nMonitoring stopped.")
